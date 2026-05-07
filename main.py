@@ -4,6 +4,11 @@ import sys
 
 # 1. Iniciar Pygame
 pygame.init()
+pygame.mixer.init()
+
+# Cargar audios
+home_theme = pygame.mixer.Sound('assets/sounds/home_theme.wav')
+battle_theme = pygame.mixer.Sound('assets/sounds/battle_theme.wav')
 
 # 2. Configurar la ventana
 WIDTH = 800
@@ -96,6 +101,9 @@ def draw_menu():
 def play_single_player():
     """Juego de un jugador"""
     # Inicializar variables
+    home_theme.stop()
+    battle_theme.play(-1)  # Reproducir en loop
+    
     player = pygame.Rect(WIDTH // 4 - player_width // 2, HEIGHT // 2 - player_height // 2, player_width, player_height)
     meteors = []
     score = 0
@@ -108,20 +116,27 @@ def play_single_player():
                 return False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    battle_theme.stop()
+                    home_theme.play(-1)
                     return True
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = event.pos
                 # Botón Pausa
                 if button_positions['pause'].collidepoint(mouse_pos):
                     is_paused = True
+                    battle_theme.set_volume(0.3)
                 # Botón Play
                 elif button_positions['play'].collidepoint(mouse_pos):
                     is_paused = False
+                    battle_theme.set_volume(1.0)
                 # Botón Home
                 elif button_positions['home'].collidepoint(mouse_pos):
+                    battle_theme.stop()
+                    home_theme.play(-1)
                     return True
                 # Botón Reiniciar
                 elif button_positions['reload'].collidepoint(mouse_pos):
+                    battle_theme.stop()
                     return play_single_player()
         
         if not is_paused:
@@ -193,6 +208,7 @@ def play_single_player():
         clock.tick(60)
     
     # Mostrar Game Over
+    battle_theme.stop()
     game_over_text = title_font.render(f"GAME OVER", True, RED)
     final_score_text = menu_font.render(f"Puntuación: {score}", True, WHITE)
     back_text = font.render("Presiona cualquier tecla para volver al menú", True, WHITE)
@@ -211,12 +227,16 @@ def play_single_player():
             if event.type == pygame.KEYDOWN:
                 waiting = False
     
+    home_theme.play(-1)
     return True
 
 # --- FUNCIÓN JUEGO MULTIPLAYER ---
 def play_multiplayer():
     """Juego de dos jugadores"""
     # Inicializar variables
+    home_theme.stop()
+    battle_theme.play(-1)  # Reproducir en loop
+    
     player1 = pygame.Rect(WIDTH // 4 - player_width // 2, HEIGHT - player_height - 10, player_width, player_height)
     player2 = pygame.Rect(3 * WIDTH // 4 - player_width // 2, HEIGHT - player_height - 10, player_width, player_height)
     meteors = []
@@ -231,20 +251,27 @@ def play_multiplayer():
                 return False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    battle_theme.stop()
+                    home_theme.play(-1)
                     return True
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = event.pos
                 # Botón Pausa
                 if button_positions['pause'].collidepoint(mouse_pos):
                     is_paused = True
+                    battle_theme.set_volume(0.3)
                 # Botón Play
                 elif button_positions['play'].collidepoint(mouse_pos):
                     is_paused = False
+                    battle_theme.set_volume(1.0)
                 # Botón Home
                 elif button_positions['home'].collidepoint(mouse_pos):
+                    battle_theme.stop()
+                    home_theme.play(-1)
                     return True
                 # Botón Reiniciar
                 elif button_positions['reload'].collidepoint(mouse_pos):
+                    battle_theme.stop()
                     return play_multiplayer()
         
         if not is_paused:
@@ -318,11 +345,17 @@ def play_multiplayer():
         pygame.display.flip()
         clock.tick(60)
     
+    battle_theme.stop()
     return True
 
 # --- BUCLE PRINCIPAL DEL MENÚ ---
 menu_running = True
+first_time_menu = True
 while menu_running:
+    if first_time_menu:
+        home_theme.play(-1)
+        first_time_menu = False
+    
     draw_menu()
     
     waiting_for_input = True
