@@ -36,7 +36,7 @@ El jugador deberá sobrevivir a oleadas de enemigos, mejorar su nave y recorrer 
 1. Clona el repositorio.
 2. CD StarShip.
 2. Crea un entorno virtual: 
-    ```bash
+    ```
     python -m venv .venv
 3. Activa el entorno virtual: 
     ```bash
@@ -49,3 +49,18 @@ El jugador deberá sobrevivir a oleadas de enemigos, mejorar su nave y recorrer 
 Ejecuta el archivo ***prueba.py*** que servirá para ver si Pygame fue instalado y es ejecutado correctamente.
 
 ## Estructura del código
+```
+StarShip-Game/
+│
+├── main.py # Punto de entrada (donde corre el juego)
+├── aleatoriedad.py # Lógica de aleatoriedad y simulaciones
+├── entidades.py # Clases: jugador, enemigos y mejoras
+├── configuraciones.py # Configuración general (resolución, colores, velocidad)
+│
+├── assets/ # Recursos del juego
+│ ├── images/ # Sprites (.png)
+│ ├── sounds/ # Efectos de sonido (.wav)
+│ └── fonts/ # Tipografías (.ttf)
+|
+└── .gitignore #Excluye archivos temporales y entornos virtuales
+└── requirements.txt # Dependencias del proyecto (Pygame)
