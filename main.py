@@ -52,9 +52,8 @@ starship_img = pygame.transform.scale(starship_img, (player_width, player_height
 
 # Cargar imágenes de meteoritos (GIF - tomaremos la primera como estática)
 asteroid_images = [
-    pygame.image.load('assets/images/Asteroid_01_La.GIF'),
-    pygame.image.load('assets/images/Asteroid_01_Sa.GIF'),
-    pygame.image.load('assets/images/Asteroid_Ida.GIF')
+    pygame.image.load('assets/images/meteo_grey.png'),
+    pygame.image.load('assets/images/meteo_brown.png')
 ]
 
 # Redimensionar asteroides
@@ -97,7 +96,7 @@ def draw_menu():
 def play_single_player():
     """Juego de un jugador"""
     # Inicializar variables
-    player = pygame.Rect(WIDTH // 2 - player_width // 2, HEIGHT - player_height - 10, player_width, player_height)
+    player = pygame.Rect(WIDTH // 4 - player_width // 2, HEIGHT // 2 - player_height // 2, player_width, player_height)
     meteors = []
     score = 0
     game_running = True
@@ -151,7 +150,9 @@ def play_single_player():
             
             # Mover meteoritos
             for i, (meteor, meteor_img, angle, rotation_speed, varied_width, varied_height) in enumerate(meteors):
-                meteor.x -= 5
+                # La velocidad horizontal depende de la velocidad de rotación
+                velocity_x = -5 * (0.5 + abs(rotation_speed) / 10)
+                meteor.x += velocity_x
                 angle += rotation_speed
                 meteors[i] = (meteor, meteor_img, angle, rotation_speed, varied_width, varied_height)
                 if meteor.right < 0:
