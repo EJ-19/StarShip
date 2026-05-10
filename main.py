@@ -1,42 +1,29 @@
+"""
+StarShip Game - Juego de esquivar meteoritos
+Archivo principal que ejecuta el juego
+"""
+
 import pygame
-import random
 import sys
 
-# 1. Iniciar Pygame
+import settings
+from entities import Player, Meteor
+from simulation_logic import create_spawner
+
+
+# ===== INICIALIZACIÓN =====
 pygame.init()
 pygame.mixer.init()
+settings.init_fonts()
 
 # Cargar audios
 home_theme = pygame.mixer.Sound('assets/sounds/home_theme.wav')
 battle_theme = pygame.mixer.Sound('assets/sounds/battle_theme.wav')
 
-# 2. Configurar la ventana
-WIDTH = 800
-HEIGHT = 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+# Configurar pantalla
+screen = pygame.display.set_mode((settings.WIDTH, settings.HEIGHT))
 pygame.display.set_caption("StarShip Game")
-
-# 3. Reloj para limitar los FPS
 clock = pygame.time.Clock()
-
-# Colores
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-YELLOW = (255, 255, 0)
-GRAY = (100, 100, 100)
-
-# Dimensiones
-player_width = 70
-player_height = 70
-meteor_width = 30
-meteor_height = 30
-
-# Fuentes
-font = pygame.font.Font(None, 28)
-small_font = pygame.font.Font(None, 24)
-title_font = pygame.font.Font(None, 72)
-menu_font = pygame.font.Font(None, 48)
 
 # Cargar iconos de botones
 pause_icon = pygame.image.load('assets/images/PauseButton.png')
@@ -45,51 +32,47 @@ home_icon = pygame.image.load('assets/images/HomeButton.png')
 reload_icon = pygame.image.load('assets/images/ReloadButton.png')
 
 # Redimensionar iconos
-icon_size = 25
-pause_icon = pygame.transform.scale(pause_icon, (icon_size, icon_size))
-play_icon = pygame.transform.scale(play_icon, (icon_size, icon_size))
-home_icon = pygame.transform.scale(home_icon, (icon_size, icon_size))
-reload_icon = pygame.transform.scale(reload_icon, (icon_size, icon_size))
+pause_icon = pygame.transform.scale(pause_icon, (settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE))
+play_icon = pygame.transform.scale(play_icon, (settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE))
+home_icon = pygame.transform.scale(home_icon, (settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE))
+reload_icon = pygame.transform.scale(reload_icon, (settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE))
 
 # Cargar imágenes del juego
 starship_img = pygame.image.load('assets/images/starship.png')
-starship_img = pygame.transform.scale(starship_img, (player_width, player_height))
+starship_img = pygame.transform.scale(starship_img, (settings.PLAYER_WIDTH, settings.PLAYER_HEIGHT))
 
-# Cargar imágenes de meteoritos (GIF - tomaremos la primera como estática)
+# Cargar imágenes de meteoritos
 asteroid_images = [
     pygame.image.load('assets/images/meteo_grey.png'),
     pygame.image.load('assets/images/meteo_brown.png')
 ]
-
-# Redimensionar asteroides
-asteroid_images = [pygame.transform.scale(img, (meteor_width, meteor_height)) for img in asteroid_images]
+asteroid_images = [pygame.transform.scale(img, (30, 30)) for img in asteroid_images]
 
 # Posiciones de los botones
 button_positions = {
-    'pause': pygame.Rect(WIDTH - 110, 10, icon_size, icon_size),
-    'play': pygame.Rect(WIDTH - 80, 10, icon_size, icon_size),
-    'home': pygame.Rect(WIDTH - 50, 10, icon_size, icon_size),
-    'reload': pygame.Rect(WIDTH - 20, 10, icon_size, icon_size)
+    'pause': pygame.Rect(settings.WIDTH - 110, 10, settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE),
+    'play': pygame.Rect(settings.WIDTH - 80, 10, settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE),
+    'home': pygame.Rect(settings.WIDTH - 50, 10, settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE),
+    'reload': pygame.Rect(settings.WIDTH - 20, 10, settings.BUTTON_ICON_SIZE, settings.BUTTON_ICON_SIZE)
 }
 
-# --- FUNCIONES DEL MENÚ ---
+
+# ===== FUNCIONES DE INTERFAZ =====
 def draw_menu():
     """Dibuja el menú principal"""
-    screen.fill(BLACK)
+    screen.fill(settings.BLACK)
     
-    # Título
-    title = title_font.render("STARSHIP GAME", True, WHITE)
-    title_rect = title.get_rect(center=(WIDTH // 2, 100))
+    title = settings.FONT_TITLE.render("STARSHIP GAME", True, settings.WHITE)
+    title_rect = title.get_rect(center=(settings.WIDTH // 2, 100))
     screen.blit(title, title_rect)
     
-    # Opciones
-    new_game_text = menu_font.render("1. New Game", True, WHITE)
-    multiplayer_text = menu_font.render("2. Multiplayer", True, WHITE)
-    exit_text = menu_font.render("3. Exit", True, WHITE)
+    new_game_text = settings.FONT_MENU.render("1. New Game", True, settings.WHITE)
+    multiplayer_text = settings.FONT_MENU.render("2. Multiplayer", True, settings.WHITE)
+    exit_text = settings.FONT_MENU.render("3. Exit", True, settings.WHITE)
     
-    new_game_rect = new_game_text.get_rect(center=(WIDTH // 2, 250))
-    multiplayer_rect = multiplayer_text.get_rect(center=(WIDTH // 2, 350))
-    exit_rect = exit_text.get_rect(center=(WIDTH // 2, 450))
+    new_game_rect = new_game_text.get_rect(center=(settings.WIDTH // 2, 250))
+    multiplayer_rect = multiplayer_text.get_rect(center=(settings.WIDTH // 2, 350))
+    exit_rect = exit_text.get_rect(center=(settings.WIDTH // 2, 450))
     
     screen.blit(new_game_text, new_game_rect)
     screen.blit(multiplayer_text, multiplayer_rect)
@@ -97,18 +80,54 @@ def draw_menu():
     
     pygame.display.flip()
 
-# --- FUNCIÓN JUEGO SINGLE PLAYER ---
+
+def draw_game_over(score):
+    """Dibuja la pantalla de game over"""
+    screen.fill(settings.BLACK)
+    
+    game_over_text = settings.FONT_TITLE.render("GAME OVER", True, settings.RED)
+    final_score_text = settings.FONT_MENU.render(f"Puntuación: {score}", True, settings.WHITE)
+    back_text = settings.FONT_REGULAR.render("Presiona cualquier tecla para volver al menú", True, settings.WHITE)
+    
+    screen.blit(game_over_text, game_over_text.get_rect(center=(settings.WIDTH // 2, 200)))
+    screen.blit(final_score_text, final_score_text.get_rect(center=(settings.WIDTH // 2, 350)))
+    screen.blit(back_text, back_text.get_rect(center=(settings.WIDTH // 2, 450)))
+    
+    pygame.display.flip()
+
+
+def handle_button_clicks(mouse_pos, is_paused, battle_theme):
+    """Maneja los clics de los botones"""
+    action = None
+    
+    if button_positions['pause'].collidepoint(mouse_pos):
+        is_paused = True
+        battle_theme.set_volume(0.3)
+    elif button_positions['play'].collidepoint(mouse_pos):
+        is_paused = False
+        battle_theme.set_volume(1.0)
+    elif button_positions['home'].collidepoint(mouse_pos):
+        action = 'home'
+    elif button_positions['reload'].collidepoint(mouse_pos):
+        action = 'reload'
+    
+    return action, is_paused
+
+
+# ===== FUNCIÓN JUEGO SINGLE PLAYER =====
 def play_single_player():
     """Juego de un jugador"""
-    # Inicializar variables
     home_theme.stop()
-    battle_theme.play(-1)  # Reproducir en loop
+    battle_theme.play(-1)
     
-    player = pygame.Rect(WIDTH // 4 - player_width // 2, HEIGHT // 2 - player_height // 2, player_width, player_height)
+    player = Player(settings.WIDTH // 4 - settings.PLAYER_WIDTH // 2, settings.HEIGHT // 2 - settings.PLAYER_HEIGHT // 2, starship_img)
     meteors = []
     score = 0
     game_running = True
     is_paused = False
+    
+    # Crear spawner de meteoritos con distribución exponencial
+    spawner = create_spawner(lambda_param=0.15)
     
     while game_running:
         for event in pygame.event.get():
@@ -120,104 +139,73 @@ def play_single_player():
                     home_theme.play(-1)
                     return True
             if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = event.pos
-                # Botón Pausa
-                if button_positions['pause'].collidepoint(mouse_pos):
-                    is_paused = True
-                    battle_theme.set_volume(0.3)
-                # Botón Play
-                elif button_positions['play'].collidepoint(mouse_pos):
-                    is_paused = False
-                    battle_theme.set_volume(1.0)
-                # Botón Home
-                elif button_positions['home'].collidepoint(mouse_pos):
+                action, is_paused = handle_button_clicks(event.pos, is_paused, battle_theme)
+                if action == 'home':
                     battle_theme.stop()
                     home_theme.play(-1)
                     return True
-                # Botón Reiniciar
-                elif button_positions['reload'].collidepoint(mouse_pos):
+                elif action == 'reload':
                     battle_theme.stop()
                     return play_single_player()
         
         if not is_paused:
             # Movimiento del jugador
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT] and player.left > 0:
-                player.x -= 5
-            if keys[pygame.K_RIGHT] and player.right < WIDTH:
-                player.x += 5
-            if keys[pygame.K_UP] and player.top > 0:
-                player.y -= 5
-            if keys[pygame.K_DOWN] and player.bottom < HEIGHT:
-                player.y += 5
+            if keys[pygame.K_LEFT]:
+                player.move_left()
+            if keys[pygame.K_RIGHT]:
+                player.move_right(settings.WIDTH)
+            if keys[pygame.K_UP]:
+                player.move_up()
+            if keys[pygame.K_DOWN]:
+                player.move_down(settings.HEIGHT)
             
-            # Generar meteoritos aleatorios
-            if len(meteors) < 7:
-                # Variar el tamaño de los asteroides
-                size_variation = random.uniform(0.7, 1.3)
-                varied_width = int(meteor_width * size_variation)
-                varied_height = int(meteor_height * size_variation)
-                meteor_rect = pygame.Rect(WIDTH, random.randint(0, HEIGHT - varied_height), varied_width, varied_height)
-                meteor_img = random.choice(asteroid_images)
-                meteor_img = pygame.transform.scale(meteor_img, (varied_width, varied_height))
-                rotation_speed = random.uniform(-5, 5)
-                meteors.append((meteor_rect, meteor_img, 0, rotation_speed, varied_width, varied_height))
+            # Generar meteoritos usando la lógica de simulación
+            if len(meteors) < settings.MAX_METEORS_SINGLE_PLAYER:
+                if spawner.should_spawn():
+                    meteor_img = asteroid_images[0] if score % 2 == 0 else asteroid_images[1]
+                    new_meteor = spawner.spawn_meteor(meteor_img)
+                    meteors.append(new_meteor)
             
-            # Mover meteoritos
-            for i, (meteor, meteor_img, angle, rotation_speed, varied_width, varied_height) in enumerate(meteors):
-                # La velocidad horizontal depende de la velocidad de rotación
-                velocity_x = -5 * (0.5 + abs(rotation_speed) / 10)
-                meteor.x += velocity_x
-                angle += rotation_speed
-                meteors[i] = (meteor, meteor_img, angle, rotation_speed, varied_width, varied_height)
-                if meteor.right < 0:
-                    meteors.pop(i)
+            # Mover y actualizar meteoritos
+            for meteor in meteors[:]:
+                meteor.move()
+                if meteor.is_off_screen(settings.WIDTH):
+                    meteors.remove(meteor)
                     score += 1
             
             # Detectar colisiones
-            for meteor, meteor_img, angle, rotation_speed, varied_width, varied_height in meteors:
-                if player.colliderect(meteor):
+            for meteor in meteors:
+                if player.collides_with(meteor.rect):
                     game_running = False
         
         # Dibujar
-        screen.fill(BLACK)
-        screen.blit(starship_img, player)
-        for meteor, meteor_img, angle, rotation_speed, varied_width, varied_height in meteors:
-            rotated_img = pygame.transform.rotate(meteor_img, angle)
-            rotated_rect = rotated_img.get_rect(center=meteor.center)
-            screen.blit(rotated_img, rotated_rect)
+        screen.fill(settings.BLACK)
+        player.draw(screen)
+        for meteor in meteors:
+            meteor.draw(screen)
         
-        score_text = small_font.render(f"Puntuación: {score}", True, WHITE)
+        score_text = settings.FONT_SMALL.render(f"Puntuación: {score}", True, settings.WHITE)
         screen.blit(score_text, (10, 10))
         
-        # Dibujar botones
         screen.blit(pause_icon, button_positions['pause'])
         screen.blit(play_icon, button_positions['play'])
         screen.blit(home_icon, button_positions['home'])
         screen.blit(reload_icon, button_positions['reload'])
         
-        # Mostrar indicador de pausa
         if is_paused:
-            pause_text = title_font.render("PAUSADO", True, YELLOW)
-            screen.blit(pause_text, pause_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+            pause_text = settings.FONT_TITLE.render("PAUSADO", True, settings.YELLOW)
+            screen.blit(pause_text, pause_text.get_rect(center=(settings.WIDTH // 2, settings.HEIGHT // 2)))
         
-        esc_text = small_font.render("Presiona ESC para volver al menú", True, GRAY)
-        screen.blit(esc_text, (10, HEIGHT - 40))
+        esc_text = settings.FONT_SMALL.render("Presiona ESC para volver al menú", True, settings.GRAY)
+        screen.blit(esc_text, (10, settings.HEIGHT - 40))
         
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(settings.FPS)
     
-    # Mostrar Game Over
+    # Game Over
     battle_theme.stop()
-    game_over_text = title_font.render(f"GAME OVER", True, RED)
-    final_score_text = menu_font.render(f"Puntuación: {score}", True, WHITE)
-    back_text = font.render("Presiona cualquier tecla para volver al menú", True, WHITE)
-    
-    screen.fill(BLACK)
-    screen.blit(game_over_text, game_over_text.get_rect(center=(WIDTH // 2, 200)))
-    screen.blit(final_score_text, final_score_text.get_rect(center=(WIDTH // 2, 350)))
-    screen.blit(back_text, back_text.get_rect(center=(WIDTH // 2, 450)))
-    pygame.display.flip()
+    draw_game_over(score)
     
     waiting = True
     while waiting:
@@ -230,20 +218,22 @@ def play_single_player():
     home_theme.play(-1)
     return True
 
-# --- FUNCIÓN JUEGO MULTIPLAYER ---
+
+# ===== FUNCIÓN JUEGO MULTIPLAYER =====
 def play_multiplayer():
     """Juego de dos jugadores"""
-    # Inicializar variables
     home_theme.stop()
-    battle_theme.play(-1)  # Reproducir en loop
+    battle_theme.play(-1)
     
-    player1 = pygame.Rect(WIDTH // 4 - player_width // 2, HEIGHT - player_height - 10, player_width, player_height)
-    player2 = pygame.Rect(3 * WIDTH // 4 - player_width // 2, HEIGHT - player_height - 10, player_width, player_height)
+    player1 = Player(settings.WIDTH // 4 - settings.PLAYER_WIDTH // 2, settings.HEIGHT - settings.PLAYER_HEIGHT - 10, starship_img)
+    player2 = Player(3 * settings.WIDTH // 4 - settings.PLAYER_WIDTH // 2, settings.HEIGHT - settings.PLAYER_HEIGHT - 10, starship_img)
     meteors = []
     score1 = 0
     score2 = 0
     game_running = True
     is_paused = False
+    
+    spawner = create_spawner(lambda_param=0.15)
     
     while game_running:
         for event in pygame.event.get():
@@ -255,126 +245,121 @@ def play_multiplayer():
                     home_theme.play(-1)
                     return True
             if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = event.pos
-                # Botón Pausa
-                if button_positions['pause'].collidepoint(mouse_pos):
-                    is_paused = True
-                    battle_theme.set_volume(0.3)
-                # Botón Play
-                elif button_positions['play'].collidepoint(mouse_pos):
-                    is_paused = False
-                    battle_theme.set_volume(1.0)
-                # Botón Home
-                elif button_positions['home'].collidepoint(mouse_pos):
+                action, is_paused = handle_button_clicks(event.pos, is_paused, battle_theme)
+                if action == 'home':
                     battle_theme.stop()
                     home_theme.play(-1)
                     return True
-                # Botón Reiniciar
-                elif button_positions['reload'].collidepoint(mouse_pos):
+                elif action == 'reload':
                     battle_theme.stop()
                     return play_multiplayer()
         
         if not is_paused:
             # Movimiento del jugador 1 (flechas)
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT] and player1.left > 0:
-                player1.x -= 5
-            if keys[pygame.K_RIGHT] and player1.right < WIDTH:
-                player1.x += 5
-            if keys[pygame.K_UP] and player1.top > 0:
-                player1.y -= 5
-            if keys[pygame.K_DOWN] and player1.bottom < HEIGHT:
-                player1.y += 5
+            if keys[pygame.K_LEFT]:
+                player1.move_left()
+            if keys[pygame.K_RIGHT]:
+                player1.move_right(settings.WIDTH)
+            if keys[pygame.K_UP]:
+                player1.move_up()
+            if keys[pygame.K_DOWN]:
+                player1.move_down(settings.HEIGHT)
             
             # Movimiento del jugador 2 (WASD)
-            if keys[pygame.K_a] and player2.left > 0:
-                player2.x -= 5
-            if keys[pygame.K_d] and player2.right < WIDTH:
-                player2.x += 5
-            if keys[pygame.K_w] and player2.top > 0:
-                player2.y -= 5
-            if keys[pygame.K_s] and player2.bottom < HEIGHT:
-                player2.y += 5
+            if keys[pygame.K_a]:
+                player2.move_left()
+            if keys[pygame.K_d]:
+                player2.move_right(settings.WIDTH)
+            if keys[pygame.K_w]:
+                player2.move_up()
+            if keys[pygame.K_s]:
+                player2.move_down(settings.HEIGHT)
             
-            # Generar meteoritos aleatorios
-            if len(meteors) < 7:
-                meteor = pygame.Rect(WIDTH, random.randint(0, HEIGHT - meteor_height), meteor_width, meteor_height)
-                meteors.append(meteor)
+            # Generar meteoritos
+            if len(meteors) < settings.MAX_METEORS_MULTIPLAYER:
+                if spawner.should_spawn():
+                    meteor_img = asteroid_images[0] if score1 % 2 == 0 else asteroid_images[1]
+                    new_meteor = spawner.spawn_meteor(meteor_img)
+                    meteors.append(new_meteor)
             
             # Mover meteoritos
-            for meteor in meteors:
-                meteor.x -= 5
-                if meteor.right < 0:
+            for meteor in meteors[:]:
+                meteor.move()
+                if meteor.is_off_screen(settings.WIDTH):
                     meteors.remove(meteor)
                     score1 += 1
                     score2 += 1
             
             # Detectar colisiones
             for meteor in meteors:
-                if player1.colliderect(meteor):
-                    game_running = False
-                if player2.colliderect(meteor):
+                if player1.collides_with(meteor.rect) or player2.collides_with(meteor.rect):
                     game_running = False
         
         # Dibujar
-        screen.fill(BLACK)
-        pygame.draw.rect(screen, WHITE, player1)
-        pygame.draw.rect(screen, YELLOW, player2)
+        screen.fill(settings.BLACK)
+        player1.draw(screen)
+        player2.draw(screen)
         for meteor in meteors:
-            pygame.draw.rect(screen, RED, meteor)
+            meteor.draw(screen)
         
-        score1_text = font.render(f"P1 (Flechas): {score1}", True, WHITE)
-        score2_text = font.render(f"P2 (WASD): {score2}", True, YELLOW)
+        score1_text = settings.FONT_REGULAR.render(f"P1 (Flechas): {score1}", True, settings.WHITE)
+        score2_text = settings.FONT_REGULAR.render(f"P2 (WASD): {score2}", True, settings.YELLOW)
         screen.blit(score1_text, (10, 10))
         screen.blit(score2_text, (10, 50))
         
-        # Dibujar botones
         screen.blit(pause_icon, button_positions['pause'])
         screen.blit(play_icon, button_positions['play'])
         screen.blit(home_icon, button_positions['home'])
         screen.blit(reload_icon, button_positions['reload'])
         
-        # Mostrar indicador de pausa
         if is_paused:
-            pause_text = title_font.render("PAUSADO", True, YELLOW)
-            screen.blit(pause_text, pause_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+            pause_text = settings.FONT_TITLE.render("PAUSADO", True, settings.YELLOW)
+            screen.blit(pause_text, pause_text.get_rect(center=(settings.WIDTH // 2, settings.HEIGHT // 2)))
         
-        esc_text = font.render("Presiona ESC para volver al menú", True, GRAY)
-        screen.blit(esc_text, (10, HEIGHT - 40))
+        esc_text = settings.FONT_REGULAR.render("Presiona ESC para volver al menú", True, settings.GRAY)
+        screen.blit(esc_text, (10, settings.HEIGHT - 40))
         
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(settings.FPS)
     
     battle_theme.stop()
     return True
 
-# --- BUCLE PRINCIPAL DEL MENÚ ---
-menu_running = True
-first_time_menu = True
-while menu_running:
-    if first_time_menu:
-        home_theme.play(-1)
-        first_time_menu = False
+
+# ===== BUCLE PRINCIPAL =====
+def main():
+    """Función principal que ejecuta el bucle del menú"""
+    menu_running = True
+    first_time_menu = True
     
-    draw_menu()
-    
-    waiting_for_input = True
-    while waiting_for_input:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                menu_running = False
-                waiting_for_input = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    menu_running = play_single_player()
-                    waiting_for_input = False
-                elif event.key == pygame.K_2:
-                    menu_running = play_multiplayer()
-                    waiting_for_input = False
-                elif event.key == pygame.K_3:
+    while menu_running:
+        if first_time_menu:
+            home_theme.play(-1)
+            first_time_menu = False
+        
+        draw_menu()
+        
+        waiting_for_input = True
+        while waiting_for_input:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     menu_running = False
                     waiting_for_input = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_1:
+                        menu_running = play_single_player()
+                        waiting_for_input = False
+                    elif event.key == pygame.K_2:
+                        menu_running = play_multiplayer()
+                        waiting_for_input = False
+                    elif event.key == pygame.K_3:
+                        menu_running = False
+                        waiting_for_input = False
+    
+    pygame.quit()
+    sys.exit()
 
-# Cerramos todo
-pygame.quit()
-sys.exit()
+
+if __name__ == "__main__":
+    main()
