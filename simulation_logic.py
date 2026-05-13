@@ -89,8 +89,20 @@ class MeteorSpawner:
         # Seleccionar clase
         meteor_class = self._select_meteor_class()
         
-        # Posición aleatoria en el borde derecho
-        y_pos = random.randint(0, settings.HEIGHT - int(settings.METEOR_HEIGHT * meteor_class['size_multiplier']))
+        # Decide si spawnea arriba o abajo usando transformada inversa de dist. exp
+        u = random.random()
+        # Lambda = 1 para esta decisión
+        x = -np.log(1 - u)
+        
+        # Mitad superior o mitad inferior
+        meteor_height = int(settings.METEOR_HEIGHT * meteor_class['size_multiplier'])
+        half_height = settings.HEIGHT // 2
+        
+        # Usamos la mediana (ln(2)) como punto de corte (50% prob)
+        if x < np.log(2):
+            y_pos = random.randint(0, half_height - meteor_height)
+        else:
+            y_pos = random.randint(half_height, settings.HEIGHT - meteor_height)
         
         # Crear meteorito
         meteor = Meteor(settings.WIDTH, y_pos, meteor_class, meteor_img)

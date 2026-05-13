@@ -75,3 +75,21 @@ class Meteor:
             screen.blit(rotated_img, rotated_rect)
         else:
             pygame.draw.rect(screen, self.color, self.rect)
+
+
+class Bullet:
+    """Clase que representa un disparo del jugador"""
+    
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 10, 5)
+        self.speed = 10
+        self.color = settings.YELLOW
+        
+    def move(self):
+        self.rect.x += self.speed
+        
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, self.rect)
+        
+    def is_off_screen(self, screen_width):
+        return self.rect.left > screen_width
