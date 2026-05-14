@@ -5,8 +5,8 @@ Configuración general del juego StarShip Game
 import pygame
 
 # ===== CONFIGURACIÓN DE VENTANA =====
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 1200
+HEIGHT = 800
 FPS = 60
 
 # ===== COLORES =====
@@ -17,8 +17,8 @@ YELLOW = (255, 255, 0)
 GRAY = (100, 100, 100)
 
 # ===== DIMENSIONES DEL JUGADOR =====
-PLAYER_WIDTH = 70
-PLAYER_HEIGHT = 70
+PLAYER_WIDTH = 100
+PLAYER_HEIGHT = 100
 
 # ===== DIMENSIONES DE METEORITOS BASE =====
 METEOR_WIDTH = 30
@@ -76,5 +76,5 @@ def init_fonts():
     global FONT_REGULAR, FONT_SMALL, FONT_TITLE, FONT_MENU
     FONT_REGULAR = pygame.font.Font(None, 28)
     FONT_SMALL = pygame.font.Font(None, 24)
-    FONT_TITLE = pygame.font.Font(None, 72)
-    FONT_MENU = pygame.font.Font(None, 48)
+    FONT_TITLE = pygame.font.Font(None, 200)
+    FONT_MENU = pygame.font.Font(None, 30)

@@ -79,10 +79,14 @@ settings.init_fonts()
 # ===== AUDIO =====
 home_theme = None
 battle_theme = None
+explosion_sound = None
+gameover_theme = None
 
 if audio_enabled:
     home_theme = load_sound("home_theme.wav")
     battle_theme = load_sound("battle_theme.wav")
+    explosion_sound = load_sound("8bit_bomb_explosion.wav")
+    gameover_theme = load_sound("final fight ost - ending.wav")
 
 # ===== PANTALLA =====
 screen = pygame.display.set_mode(
@@ -169,43 +173,43 @@ def stop_sound(sound):
         sound.stop()
 
 
-def draw_menu():
+def draw_menu_visual(selected=None):
     screen.fill(settings.BLACK)
+    option_rects = {}
 
-    title = settings.FONT_TITLE.render(
-        "STARSHIP GAME",
-        True,
-        settings.WHITE
-    )
+    # Dimensiones y posiciones adaptadas a la pantalla
+    menu_width = int(settings.WIDTH * 0.4)
+    menu_height = int(settings.HEIGHT * 0.12)
+    sep = int(settings.HEIGHT * 0.06)
+    start_y = settings.HEIGHT // 2 - menu_height - sep // 2
 
-    screen.blit(
-        title,
-        title.get_rect(center=(settings.WIDTH // 2, 120))
-    )
+    # Colores
+    rect_color = (40, 40, 60)
+    hover_color = (80, 80, 160)
+    border_color = (200, 200, 255)
+    text_color = settings.WHITE
+    hover_text_color = settings.YELLOW
 
-    options = [
-        "1. Single Player",
-        "2. Multiplayer",
-        "3. Exit"
-    ]
-
-    y = 260
-
-    for option in options:
-        text = settings.FONT_MENU.render(
-            option,
-            True,
-            settings.WHITE
-        )
-
-        screen.blit(
-            text,
-            text.get_rect(center=(settings.WIDTH // 2, y))
-        )
-
-        y += 90
+    # Opciones
+    options = [(1, "1 Player"), (2, "Multiplayer")]
+    for idx, (opt, label) in enumerate(options):
+        x = (settings.WIDTH - menu_width) // 2
+        y = start_y + idx * (menu_height + sep)
+        rect = pygame.Rect(x, y, menu_width, menu_height)
+        is_hover = (selected == opt)
+        # Fondo
+        pygame.draw.rect(screen, hover_color if is_hover else rect_color, rect, border_radius=18)
+        # Borde
+        pygame.draw.rect(screen, border_color, rect, 4, border_radius=18)
+        # Texto
+        font = settings.FONT_MENU
+        text = font.render(label, True, hover_text_color if is_hover else text_color)
+        text_rect = text.get_rect(center=rect.center)
+        screen.blit(text, text_rect)
+        option_rects[opt] = rect
 
     pygame.display.flip()
+    return option_rects
 
 
 def draw_game_over(score):
@@ -372,6 +376,8 @@ def play_single_player():
                         if meteor in meteors:
                             meteors.remove(meteor)
                             score += 5  # Bonus por destruir meteoros
+                            # Sonido de explosión
+                            play_sound(explosion_sound)
                         break
 
             # Actualizar meteoros
@@ -437,52 +443,106 @@ def play_single_player():
     # ===== GAME OVER =====
     stop_sound(battle_theme)
 
+    # Reproducir música de game over
+    stop_sound(home_theme)
+    play_sound(gameover_theme, -1)
+
     draw_game_over(score)
 
     waiting = True
 
     while waiting:
-
         for event in pygame.event.get():
-
             if event.type == pygame.QUIT:
+                stop_sound(gameover_theme)
                 return False
-
             if event.type == pygame.KEYDOWN:
                 waiting = False
 
+    stop_sound(gameover_theme)
     play_sound(home_theme, -1)
-
     return True
 
 
 # ===== MAIN =====
 def main():
-
     play_sound(home_theme, -1)
 
     running = True
+    menu_stage = 0  # 0: pantalla de "Presione cualquier tecla", 1: menú visual
+    option_rects = None
+
 
     while running:
+        if menu_stage == 0:
+            # Portada con título estilo StarFox y arte
+            screen.fill(settings.BLACK)
+            # Título grande
+            font_title = settings.FONT_TITLE
+            title_text = "StarShip"
+            title = font_title.render(title_text, True, settings.WHITE)
+            title_rect = title.get_rect(center=(settings.WIDTH // 2, 180))
 
-        draw_menu()
+            # Nave inclinada a la izquierda
+            ship_img = pygame.transform.rotozoom(starship_img, 45, 5.0)
+            ship_rect = ship_img.get_rect(midleft=(title_rect.left - 300, title_rect.centery + 200))
+            screen.blit(ship_img, ship_rect)
+
+            # Meteoritos a la derecha, varios tamaños
+            meteo1 = pygame.transform.scale(asteroid_images[0], (70, 70))
+            meteo2 = pygame.transform.scale(asteroid_images[1], (40, 40))
+            meteo3 = pygame.transform.scale(asteroid_images[0], (30, 30))
+            meteo4 = pygame.transform.scale(asteroid_images[1], (55, 55))
+            screen.blit(meteo1, meteo1.get_rect(midleft=(title_rect.right + 40, title_rect.centery - 30)))
+            screen.blit(meteo2, meteo2.get_rect(midleft=(title_rect.right + 100, title_rect.centery + 10)))
+            screen.blit(meteo3, meteo3.get_rect(midleft=(title_rect.right + 80, title_rect.centery - 50)))
+            screen.blit(meteo4, meteo4.get_rect(midleft=(title_rect.right + 60, title_rect.centery + 40)))
+
+            # Título
+            screen.blit(title, title_rect)
+
+            # Mensaje minimalista
+            msg = settings.FONT_MENU.render("Presione cualquier tecla para continuar", True, settings.GRAY)
+            screen.blit(msg, msg.get_rect(center=(settings.WIDTH // 2, 700)))
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                    else:
+                        menu_stage = 1
+                        break
+            clock.tick(settings.FPS)
+            continue
+
+        # Menú visual de modos con hover
+
+        mouse_pos = pygame.mouse.get_pos()
+        selected = None
+        # Solo calcular hover y dibujar una vez
+        temp_option_rects = draw_menu_visual(selected=None)
+        for opt, rect in temp_option_rects.items():
+            if rect.collidepoint(mouse_pos):
+                selected = opt
+                break
+        option_rects = draw_menu_visual(selected=selected)
 
         for event in pygame.event.get():
-
             if event.type == pygame.QUIT:
-
                 running = False
-
             elif event.type == pygame.KEYDOWN:
-
-                if event.key == pygame.K_1:
-
-                    running = play_single_player()
-
-                elif event.key == pygame.K_3:
-
+                if event.key == pygame.K_ESCAPE:
                     running = False
-
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if selected is not None:
+                    if selected == 1:
+                        running = play_single_player()
+                    elif selected == 2:
+                        # Aquí iría la función de multijugador
+                        pass
         clock.tick(settings.FPS)
 
     pygame.quit()

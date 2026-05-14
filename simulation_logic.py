@@ -94,18 +94,30 @@ class MeteorSpawner:
         # Lambda = 1 para esta decisión
         x = -np.log(1 - u)
         
-        # Mitad superior o mitad inferior
+        # Calcular tamaño mínimo requerido
+        min_size = max(settings.PLAYER_HEIGHT, settings.PLAYER_WIDTH) + 10
+        min_size = max(min_size, 50)
         meteor_height = int(settings.METEOR_HEIGHT * meteor_class['size_multiplier'])
+        meteor_width = int(settings.METEOR_WIDTH * meteor_class['size_multiplier'])
+        # Ajustar si es menor al mínimo
+        if meteor_height < min_size:
+            meteor_height = min_size
+        if meteor_width < min_size:
+            meteor_width = min_size
         half_height = settings.HEIGHT // 2
-        
+
         # Usamos la mediana (ln(2)) como punto de corte (50% prob)
         if x < np.log(2):
             y_pos = random.randint(0, half_height - meteor_height)
         else:
             y_pos = random.randint(half_height, settings.HEIGHT - meteor_height)
-        
-        # Crear meteorito
+
+        # Crear meteorito (pasar tamaño personalizado)
         meteor = Meteor(settings.WIDTH, y_pos, meteor_class, meteor_img)
+        meteor.width = meteor_width
+        meteor.height = meteor_height
+        meteor.rect.width = meteor_width
+        meteor.rect.height = meteor_height
         
         # Asignar velocidad de rotación aleatoria dentro del rango de la clase
         rotation_min, rotation_max = meteor.rotation_speed_range
