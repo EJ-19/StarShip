@@ -228,7 +228,7 @@ def draw_game_over(score):
     )
 
     retry_text = settings.FONT_REGULAR.render(
-        "Presiona cualquier tecla",
+        "Presione SPACE",
         True,
         settings.GRAY
     )
@@ -245,7 +245,7 @@ def draw_game_over(score):
 
     screen.blit(
         retry_text,
-        retry_text.get_rect(center=(settings.WIDTH // 2, 420))
+        retry_text.get_rect(center=(settings.WIDTH // 2, 600))
     )
 
     pygame.display.flip()
@@ -457,7 +457,8 @@ def play_single_player():
                 stop_sound(gameover_theme)
                 return False
             if event.type == pygame.KEYDOWN:
-                waiting = False
+                if event.key == pygame.K_SPACE:
+                    waiting = False
 
     stop_sound(gameover_theme)
     play_sound(home_theme, -1)
@@ -502,7 +503,7 @@ def main():
             screen.blit(title, title_rect)
 
             # Mensaje minimalista
-            msg = settings.FONT_MENU.render("Presione cualquier tecla para continuar", True, settings.GRAY)
+            msg = settings.FONT_MENU.render("Presione SPACE para continuar", True, settings.GRAY)
             screen.blit(msg, msg.get_rect(center=(settings.WIDTH // 2, 700)))
             pygame.display.flip()
 
@@ -512,7 +513,7 @@ def main():
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
-                    else:
+                    elif event.key == pygame.K_SPACE:
                         menu_stage = 1
                         break
             clock.tick(settings.FPS)
