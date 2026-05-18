@@ -6,6 +6,7 @@ Archivo principal que ejecuta el juego
 import pygame
 import sys
 import os
+import json
 
 import settings
 from entities import Player, Bullet
@@ -212,43 +213,99 @@ def draw_menu_visual(selected=None):
     return option_rects
 
 
-def draw_game_over(score):
-    screen.fill(settings.BLACK)
+# ===== SCORES =====
+SCORES_FILE = os.path.join(BASE_DIR, "scores.json")
 
-    title = settings.FONT_TITLE.render(
-        "GAME OVER",
-        True,
-        settings.RED
-    )
+def load_scores():
+    if os.path.exists(SCORES_FILE):
+        try:
+            with open(SCORES_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
 
-    score_text = settings.FONT_MENU.render(
-        f"Puntuación: {score}",
-        True,
-        settings.WHITE
-    )
+def save_score(name, score):
+    scores = load_scores()
+    name = name.strip()
+    if not name:
+        name = "Anon"
+        
+    if name in scores:
+        scores[name] = max(scores[name], score)
+    else:
+        scores[name] = score
+        
+    with open(SCORES_FILE, 'w') as f:
+        json.dump(scores, f, indent=4)
 
-    retry_text = settings.FONT_REGULAR.render(
-        "Presione SPACE",
-        True,
-        settings.GRAY
-    )
+def get_player_name(score):
+    name = ""
+    while True:
+        screen.fill(settings.BLACK)
+        
+        title = settings.FONT_TITLE.render("GAME OVER", True, settings.RED)
+        score_text = settings.FONT_MENU.render(f"Puntuación: {score}", True, settings.WHITE)
+        prompt_text = settings.FONT_REGULAR.render("Ingresa tu nombre y presiona ENTER:", True, settings.GRAY)
+        name_text = settings.FONT_MENU.render(name + "_", True, settings.YELLOW)
+        
+        screen.blit(title, title.get_rect(center=(settings.WIDTH // 2, 200)))
+        screen.blit(score_text, score_text.get_rect(center=(settings.WIDTH // 2, 320)))
+        screen.blit(prompt_text, prompt_text.get_rect(center=(settings.WIDTH // 2, 450)))
+        screen.blit(name_text, name_text.get_rect(center=(settings.WIDTH // 2, 500)))
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return name
+                elif event.key == pygame.K_BACKSPACE:
+                    name = name[:-1]
+                else:
+                    if len(name) < 15 and event.unicode.isprintable():
+                        name += event.unicode
+        clock.tick(settings.FPS)
 
-    screen.blit(
-        title,
-        title.get_rect(center=(settings.WIDTH // 2, 200))
-    )
-
-    screen.blit(
-        score_text,
-        score_text.get_rect(center=(settings.WIDTH // 2, 320))
-    )
-
-    screen.blit(
-        retry_text,
-        retry_text.get_rect(center=(settings.WIDTH // 2, 600))
-    )
-
-    pygame.display.flip()
+def show_leaderboard():
+    scores = load_scores()
+    sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    
+    title_font = settings.FONT_TITLE
+    
+    while True:
+        screen.fill(settings.BLACK)
+        
+        title_surf = title_font.render("RANKING", True, settings.YELLOW)
+        title_surf = pygame.transform.scale(title_surf, (int(title_surf.get_width()*0.4), int(title_surf.get_height()*0.4)))
+        screen.blit(title_surf, title_surf.get_rect(center=(settings.WIDTH // 2, 100)))
+        
+        y_offset = 220
+        if not sorted_scores:
+            txt = settings.FONT_MENU.render("No hay puntajes aún.", True, settings.WHITE)
+            screen.blit(txt, txt.get_rect(center=(settings.WIDTH // 2, y_offset)))
+        else:
+            for i, (n, s) in enumerate(sorted_scores[:10]):
+                color = settings.WHITE if i > 0 else settings.YELLOW
+                txt = settings.FONT_MENU.render(f"{i+1}. {n} - {s}", True, color)
+                screen.blit(txt, txt.get_rect(center=(settings.WIDTH // 2, y_offset)))
+                y_offset += 45
+            
+        prompt = settings.FONT_REGULAR.render("Presione SPACE para continuar", True, settings.GRAY)
+        screen.blit(prompt, prompt.get_rect(center=(settings.WIDTH // 2, 700)))
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    return
+        clock.tick(settings.FPS)
 
 
 def handle_buttons(mouse_pos, paused):
@@ -285,6 +342,8 @@ def play_single_player():
     bullets = []
 
     score = 0
+    lives = 3.0
+    level = 1
 
     paused = False
 
@@ -348,8 +407,16 @@ def play_single_player():
             if keys[pygame.K_DOWN]:
                 player.move_down(settings.HEIGHT)
 
-            # Spawn meteoros
-            if len(meteors) < settings.MAX_METEORS_SINGLE_PLAYER:
+            # Sistema de niveles
+            if score >= 100 and level < 3:
+                level = 3
+                spawner.lambda_param = 0.60
+            elif score >= 50 and score < 100 and level < 2:
+                level = 2
+                spawner.lambda_param = 0.40
+
+            # Spawn meteoros - Solo 1 a la vez en pantalla
+            if len(meteors) < 1:
 
                 if spawner.should_spawn():
 
@@ -388,14 +455,21 @@ def play_single_player():
                 if meteor.is_off_screen(settings.WIDTH):
 
                     meteors.remove(meteor)
-                    score += 1
+                    lives -= 0.5
+                    
+                    if lives <= 0:
+                        running = False
 
             # Colisiones
-            for meteor in meteors:
+            for meteor in meteors[:]:
 
                 if player.collides_with(meteor.rect):
-
-                    running = False
+                    meteors.remove(meteor)
+                    lives -= 1.0
+                    play_sound(explosion_sound)
+                    
+                    if lives <= 0:
+                        running = False
 
         # ===== DIBUJO =====
         screen.fill(settings.BLACK)
@@ -414,7 +488,21 @@ def play_single_player():
             settings.WHITE
         )
 
+        level_text = settings.FONT_SMALL.render(
+            f"Nivel: {level}",
+            True,
+            settings.YELLOW
+        )
+
+        lives_text = settings.FONT_SMALL.render(
+            f"Vidas: {lives}",
+            True,
+            settings.RED
+        )
+
         screen.blit(score_text, (10, 10))
+        screen.blit(level_text, (10, 40))
+        screen.blit(lives_text, (10, 70))
 
         screen.blit(pause_icon, button_positions['pause'])
         screen.blit(play_icon, button_positions['play'])
@@ -447,18 +535,10 @@ def play_single_player():
     stop_sound(home_theme)
     play_sound(gameover_theme, -1)
 
-    draw_game_over(score)
-
-    waiting = True
-
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                stop_sound(gameover_theme)
-                return False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    waiting = False
+    name = get_player_name(score)
+    if name is not False:
+        save_score(name, score)
+        show_leaderboard()
 
     stop_sound(gameover_theme)
     play_sound(home_theme, -1)
