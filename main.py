@@ -7,6 +7,8 @@ import pygame
 import sys
 import os
 import json
+import random
+import math
 
 import settings
 from entities import Player, Bullet
@@ -59,6 +61,129 @@ def load_sound(filename):
         print(f"Error cargando sonido: {path}")
         print(e)
         return None
+
+
+# ===== SISTEMA DE CARATULA (INDEPENDIENTE DEL JUEGO) =====
+class TitleStar:
+    """Estrella del fondo de la caratula"""
+    def __init__(self, x, y, brightness):
+        self.x = x
+        self.y = y
+        self.brightness = brightness
+        self.max_brightness = brightness
+        self.pulse_speed = random.uniform(0.02, 0.08)
+        self.pulse_direction = random.choice([-1, 1])
+    
+    def update(self):
+        """Anima el brillo de la estrella"""
+        self.brightness += self.pulse_speed * self.pulse_direction
+        if self.brightness >= self.max_brightness or self.brightness <= self.max_brightness * 0.3:
+            self.pulse_direction *= -1
+    
+    def draw(self, surface):
+        """Dibuja la estrella"""
+        color = (int(self.brightness), int(self.brightness), int(self.brightness))
+        pygame.draw.circle(surface, color, (int(self.x), int(self.y)), 1)
+
+
+class StarsField:
+    """Campo de estrellas animadas"""
+    def __init__(self, width, height, num_stars=200):
+        self.width = width
+        self.height = height
+        self.stars = []
+        
+        for _ in range(num_stars):
+            x = random.uniform(0, width)
+            y = random.uniform(0, height)
+            brightness = random.uniform(80, 255)
+            self.stars.append(TitleStar(x, y, brightness))
+    
+    def update(self):
+        """Actualiza todas las estrellas"""
+        for star in self.stars:
+            star.update()
+    
+    def draw(self, surface):
+        """Dibuja todas las estrellas"""
+        for star in self.stars:
+            star.draw(surface)
+
+
+class TitleMeteor:
+    """Meteorito de la caratula con movimiento independiente"""
+    def __init__(self, x, y, image, speed, size_scale, rotation_speed):
+        self.x = x
+        self.y = y
+        self.original_image = image
+        self.speed = speed
+        self.size_scale = size_scale
+        self.rotation_speed = rotation_speed
+        self.rotation = 0
+        self.rect = self.original_image.get_rect(center=(int(x), int(y)))
+    
+    def update(self):
+        """Actualiza posición y rotación"""
+        self.x += self.speed
+        self.rotation += self.rotation_speed
+        self.rect.center = (int(self.x), int(self.y))
+    
+    def draw(self, surface):
+        """Dibuja el meteorito rotado"""
+        scaled_image = pygame.transform.scale(
+            self.original_image,
+            (int(self.original_image.get_width() * self.size_scale),
+             int(self.original_image.get_height() * self.size_scale))
+        )
+        rotated_image = pygame.transform.rotate(scaled_image, self.rotation)
+        rotated_rect = rotated_image.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(rotated_image, rotated_rect)
+    
+    def is_off_screen(self, width):
+        """Verifica si el meteorito salió de la pantalla"""
+        return self.x > width + 100 or self.x < -100
+
+
+class TitleMeteorsSystem:
+    """Sistema de meteoritos para la caratula"""
+    def __init__(self, width, height, asteroid_images):
+        self.width = width
+        self.height = height
+        self.asteroid_images = asteroid_images
+        self.meteors = []
+        self.spawn_timer = 0
+        self.spawn_interval = 40  # frames entre spawns
+    
+    def update(self):
+        """Actualiza y gestiona meteoritos"""
+        self.spawn_timer += 1
+        
+        # Spawnear nuevos meteoritos
+        if self.spawn_timer >= self.spawn_interval:
+            self.spawn_meteor()
+            self.spawn_timer = 0
+        
+        # Actualizar meteoritos existentes
+        for meteor in self.meteors[:]:
+            meteor.update()
+            if meteor.is_off_screen(self.width):
+                self.meteors.remove(meteor)
+    
+    def spawn_meteor(self):
+        """Crea un nuevo meteorito"""
+        y = random.uniform(50, self.height - 100)
+        image = random.choice(self.asteroid_images)
+        speed = random.uniform(1.5, 4.0)
+        size_scale = random.uniform(0.5, 2.5)
+        rotation_speed = random.uniform(-8, 8)
+        
+        meteor = TitleMeteor(-50, y, image, speed, size_scale, rotation_speed)
+        self.meteors.append(meteor)
+    
+    def draw(self, surface):
+        """Dibuja todos los meteoritos"""
+        for meteor in self.meteors:
+            meteor.draw(surface)
 
 
 # ===== INICIALIZACIÓN =====
@@ -130,6 +255,10 @@ asteroid_images = [
     load_image("meteo_grey.png", (30, 30)),
     load_image("meteo_brown.png", (30, 30))
 ]
+
+# ===== SISTEMA DE CARATULA =====
+stars_field = StarsField(settings.WIDTH, settings.HEIGHT, num_stars=200)
+title_meteors_system = TitleMeteorsSystem(settings.WIDTH, settings.HEIGHT, asteroid_images)
 
 # ===== BOTONES =====
 button_positions = {
@@ -556,35 +685,29 @@ def main():
 
     while running:
         if menu_stage == 0:
-            # Portada con título estilo StarFox y arte
+            # ===== PORTADA CON FONDO ESTRELLADO Y METEORITOS ANIMADOS =====
             screen.fill(settings.BLACK)
-            # Título grande
+            
+            # Dibujar campo de estrellas
+            stars_field.update()
+            stars_field.draw(screen)
+            
+            # Actualizar y dibujar meteoritos de la caratula
+            title_meteors_system.update()
+            title_meteors_system.draw(screen)
+            
+            # Título en amarillo bonito
             font_title = settings.FONT_TITLE
             title_text = "StarShip"
-            title = font_title.render(title_text, True, settings.WHITE)
-            title_rect = title.get_rect(center=(settings.WIDTH // 2, 180))
-
-            # Nave inclinada a la izquierda
-            ship_img = pygame.transform.rotozoom(starship_img, 45, 5.0)
-            ship_rect = ship_img.get_rect(midleft=(title_rect.left - 300, title_rect.centery + 200))
-            screen.blit(ship_img, ship_rect)
-
-            # Meteoritos a la derecha, varios tamaños
-            meteo1 = pygame.transform.scale(asteroid_images[0], (70, 70))
-            meteo2 = pygame.transform.scale(asteroid_images[1], (40, 40))
-            meteo3 = pygame.transform.scale(asteroid_images[0], (30, 30))
-            meteo4 = pygame.transform.scale(asteroid_images[1], (55, 55))
-            screen.blit(meteo1, meteo1.get_rect(midleft=(title_rect.right + 40, title_rect.centery - 30)))
-            screen.blit(meteo2, meteo2.get_rect(midleft=(title_rect.right + 100, title_rect.centery + 10)))
-            screen.blit(meteo3, meteo3.get_rect(midleft=(title_rect.right + 80, title_rect.centery - 50)))
-            screen.blit(meteo4, meteo4.get_rect(midleft=(title_rect.right + 60, title_rect.centery + 40)))
-
-            # Título
+            # Amarillo bonito (#FFD700 - Gold)
+            title = font_title.render(title_text, True, (255, 215, 0))
+            title_rect = title.get_rect(center=(settings.WIDTH // 2, settings.HEIGHT // 2 - 50))
             screen.blit(title, title_rect)
-
-            # Mensaje minimalista
+            
+            # Mensaje en la parte inferior
             msg = settings.FONT_MENU.render("Presione SPACE para continuar", True, settings.GRAY)
-            screen.blit(msg, msg.get_rect(center=(settings.WIDTH // 2, 700)))
+            screen.blit(msg, msg.get_rect(center=(settings.WIDTH // 2, settings.HEIGHT - 80)))
+            
             pygame.display.flip()
 
             for event in pygame.event.get():
